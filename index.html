@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#005BAC">
+<meta name="robots" content="noindex">
+<title>철도안전 인증서 받기</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jua&display=swap" rel="stylesheet">
+<style>
+  /* 코레일체 — 이름·본문·날짜·발급처. 글꼴을 바꾸려면 fonts/ 파일만 교체 */
+  @font-face { font-family: 'Korail'; src: url('fonts/Korail-L.ttf') format('truetype'); font-weight: 300; font-display: swap; }
+  @font-face { font-family: 'Korail'; src: url('fonts/Korail-M.ttf') format('truetype'); font-weight: 400 500; font-display: swap; }
+  @font-face { font-family: 'Korail'; src: url('fonts/Korail-B.ttf') format('truetype'); font-weight: 600 800; font-display: swap; }
+
+  :root {
+    --k-blue: #005BAC; --k-sky: #00B2E3; --k-gold: #85714D;
+    --paper: #fffefb; --ink: #1f1f1f; --muted: #6b6b6b;
+    --no: #cfd3d8; --seal: rgba(196, 36, 36, .85);
+    --round: 'Jua', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+    --text: 'Korail', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    min-height: 100dvh;
+    font-family: var(--round);
+    color: var(--ink);
+    background: linear-gradient(160deg, var(--k-blue) 0%, var(--k-sky) 100%) fixed;
+    -webkit-text-size-adjust: 100%;
+  }
+  [hidden] { display: none !important; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  /* ---------- 위: 이름 쓰는 칸 ---------- */
+  .top { max-width: 480px; margin: 0 auto; padding: max(18px, env(safe-area-inset-top)) 18px 14px; color: #fff; }
+  .top h1 { margin: 0 0 4px; font-weight: normal; font-size: 24px; }
+  .top p  { margin: 0 0 14px; font-family: var(--text); font-size: 14.5px; opacity: .9; }
+  .field input {
+    width: 100%; font: inherit; font-family: var(--text); font-weight: 700; font-size: 20px; color: var(--ink);
+    padding: 11px 14px; border: 0; border-radius: 12px; background: #fff;
+  }
+  .field input::placeholder { color: #b5b5b5; font-family: var(--round); font-weight: normal; }
+  .field input:focus-visible { outline: 3px solid #ffe27a; outline-offset: 2px; }
+  .field.need input { outline: 3px solid #ffe27a; outline-offset: 2px; animation: shake .35s; }
+  .need-msg { margin: 8px 2px 0; font-family: var(--text); font-size: 15px; color: #ffe27a; }
+  @keyframes shake { 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+
+  main { max-width: 480px; margin: 0 auto; padding: 4px 18px 170px; }
+
+  /* ---------- 인증서: 저장되는 그림과 똑같은 3:4 한 장 ----------
+     540×720 으로 그리고 화면 폭에 맞춰 축소 (저장은 2배 = 1080×1440) */
+  .sheet-wrap {
+    position: relative; width: 100%; aspect-ratio: 3 / 4; border-radius: 4px;
+    box-shadow: 0 2px 0 rgba(0,0,0,.08), 0 22px 40px rgba(0, 35, 80, .38);
+  }
+  .cert {
+    position: absolute; left: 0; top: 0; width: 540px; height: 720px;
+    transform-origin: 0 0; transform: scale(var(--s, .62));
+    background: radial-gradient(120% 90% at 50% 40%, #fff 55%, #fbf7ee 100%), var(--paper);
+    border-radius: 4px; overflow: hidden;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 42px 48px 50px; text-align: center;
+  }
+  .frame { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+
+  .label { position: relative; font-size: 18px; color: var(--k-gold); letter-spacing: .4em; margin-right: -.4em; margin-bottom: 8px; }
+  .title { margin: 0; font-weight: normal; color: var(--k-blue); font-size: 50px; line-height: 1.1; letter-spacing: .02em; }
+
+  .name { align-self: stretch; display: flex; justify-content: flex-end; align-items: baseline; gap: 10px; margin: 12px 0 0; }
+  .name .k { font-family: var(--text); font-size: 17px; color: var(--muted); }
+  .name .v {
+    font-family: var(--text); font-weight: 700; white-space: nowrap;
+    font-size: 19px; letter-spacing: .06em; margin-right: -.06em;
+    min-width: 3.4em; text-align: center;
+    padding: 0 .15em 1px; border-bottom: 1.5px solid var(--hero, var(--k-blue));
+  }
+  .name .v.empty { color: #c9c9c9; }
+
+  .body { align-self: stretch; font-family: var(--text); font-size: 17.5px; line-height: 1.75; word-break: keep-all; text-align: left; margin: 10px 0 0; }
+  .body b { font-weight: 700; color: var(--hero, var(--k-blue)); }
+  .cert[data-hero="kiro"]  { --hero: #177B9C; }
+  .cert[data-hero="aro"]   { --hero: #c4437c; }
+  .cert[data-hero="chiyo"] { --hero: #22873a; }
+
+  .art { width: 334px; aspect-ratio: 560 / 448; margin: 10px 0 0; border-radius: 16px; overflow: hidden; background: #eef3f8; }
+  .art img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+  .score { display: flex; align-items: center; gap: 10px; margin: 12px 0 0; font-family: var(--text); font-size: 17px; color: var(--muted); }
+  .score .n { color: var(--hero, var(--k-blue)); font-weight: 700; }
+  .dots { display: inline-flex; gap: 4px; }
+  .dots i { width: 15px; height: 15px; border-radius: 50%; display: inline-grid; place-items: center; background: var(--no); }
+  .dots i.ok { background: var(--hero, var(--k-blue)); }
+  .dots i.ok::after { content: ''; width: 6px; height: 3px; border: solid #fff; border-width: 0 0 2px 2px; transform: translateY(-1px) rotate(-45deg); }
+
+  .date { margin-top: auto; padding-top: 10px; font-family: var(--text); font-size: 18px; letter-spacing: .06em; }
+
+  .issuer { margin: 10px 0 0; font-family: var(--text); font-weight: 700; font-size: 21px; letter-spacing: .02em; }
+  .issuer .t { position: relative; display: inline-block; }
+  .seal {
+    position: absolute; left: calc(100% + 10px); top: 50%;
+    width: 60px; height: 60px; margin-top: -30px; border-radius: 50%;
+    border: 3.5px solid var(--seal); color: var(--seal);
+    display: grid; place-items: center; text-align: center;
+    font-family: var(--round); font-size: 13.5px; line-height: 1.05; font-weight: normal; letter-spacing: 0;
+    transform: rotate(-12deg); opacity: 0;
+  }
+  .seal::before { content: ''; position: absolute; inset: 3px; border: 1px solid currentColor; border-radius: 50%; }
+  /* 이름을 다 적으면(또는 저장할 때) 쾅 찍힘 */
+  .seal.on { opacity: 1; animation: stamp .45s cubic-bezier(.2,1.6,.4,1) both; }
+  @keyframes stamp { from { opacity: 0; transform: rotate(-12deg) scale(2.2); } to { opacity: 1; transform: rotate(-12deg) scale(1); } }
+
+  /* ---------- 아래: 저장 버튼 ---------- */
+  .actions {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 5;
+    padding: 18px 18px max(14px, env(safe-area-inset-bottom));
+    background: linear-gradient(0deg, #005BAC 55%, rgba(0,91,172,0));
+  }
+  body.typing .actions { display: none; } /* 이름 적는 동안 키보드 위로 따라와 인증서를 가리지 않게 */
+  .actions .inner { max-width: 444px; margin: 0 auto; display: grid; grid-template-columns: 1fr; gap: 10px; }
+  .actions .inner.two { grid-template-columns: 1fr auto; }
+  .btn { font: inherit; font-size: 20px; border: 0; border-radius: 999px; padding: 14px 18px; cursor: pointer; color: inherit; }
+  .btn.primary { background: #fff; color: var(--k-blue); box-shadow: 0 5px 0 #00467f; }
+  .btn.primary:active { transform: translateY(4px); box-shadow: 0 1px 0 #00467f; }
+  .btn.primary:disabled { opacity: .85; cursor: progress; transform: none; }
+  .btn.ghost { background: rgba(255,255,255,.15); color: #fff; border: 2.5px solid #fff; padding: 11.5px 18px; font-size: 18px; }
+  .btn:focus-visible { outline: 4px solid #ffe27a; outline-offset: 3px; }
+  .help { grid-column: 1 / -1; margin: 0; text-align: center; color: #fff; font-family: var(--text); font-size: 14px; min-height: 1.4em; }
+  .help button { font: inherit; color: #fff; background: none; border: 0; padding: 4px 2px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+
+  /* ---------- 꾹 눌러 저장 화면 (카카오톡 등 앱 안에서 열었을 때) ---------- */
+  .viewer {
+    position: fixed; inset: 0; z-index: 20; background: rgba(0, 20, 45, .94);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+    padding: max(16px, env(safe-area-inset-top)) 18px max(16px, env(safe-area-inset-bottom));
+    color: #fff; text-align: center;
+  }
+  .viewer p { margin: 0; font-size: 20px; line-height: 1.4; }
+  .viewer p small { display: block; font-family: var(--text); font-size: 14.5px; opacity: .85; margin-top: 4px; }
+  .viewer img { width: min(100%, 440px, calc(64dvh * .75)); height: auto; flex: none; border-radius: 4px; box-shadow: 0 10px 30px rgba(0,0,0,.4); -webkit-touch-callout: default; user-select: auto; }
+
+  /* ---------- 잘못된 QR ---------- */
+  .bad { max-width: 440px; margin: 18vh auto 0; padding: 30px 24px; text-align: center; color: #fff; }
+  .bad h1 { margin: 0 0 12px; font-weight: normal; font-size: 26px; }
+  .bad p { margin: 0; font-family: var(--text); font-size: 17px; line-height: 1.6; word-break: keep-all; }
+
+  @media (prefers-reduced-motion: reduce) { .seal.on { animation: none; } .field.need input { animation: none; } }
+</style>
+</head>
+<body>
+
+<section class="bad" id="bad" hidden>
+  <h1>QR 코드를 인식하지 못했어요</h1>
+  <p>게임 화면의 QR 코드를 다시 찍어 주세요.</p>
+</section>
+
+<div id="app" hidden>
+<header class="top">
+  <h1><span aria-hidden="true">🏆 </span>철도안전 인증서 받기</h1>
+  <p>이름을 적으면 인증서에 바로 들어가요.</p>
+  <div class="field" id="field">
+    <label for="name" class="sr">이름</label>
+    <input id="name" type="text" maxlength="6" placeholder="이름을 적어 주세요" autocomplete="off" enterkeyhint="done" aria-describedby="needMsg">
+    <p class="need-msg" id="needMsg" role="alert" hidden>이름을 먼저 적어 주세요.</p>
+  </div>
+</header>
+
+<main>
+  <div class="sheet-wrap" id="wrap">
+    <article class="cert" id="cert" aria-label="철도안전 인증서">
+      <svg class="frame" viewBox="0 0 540 720" aria-hidden="true">
+        <rect x="14" y="14" width="512" height="692" rx="6" fill="none" stroke="#005BAC" stroke-width="2.5"/>
+        <rect x="21" y="21" width="498" height="678" rx="3" fill="none" stroke="#005BAC" stroke-opacity=".45" stroke-width="1"/>
+      </svg>
+
+      <div class="label">철도안전 인증서</div>
+      <h2 class="title" id="title"></h2>
+
+      <div class="name">
+        <span class="k">이름</span>
+        <span class="v empty" id="nameOut">홍길동</span>
+      </div>
+
+      <p class="body" id="body"></p>
+
+      <div class="art"><img id="art" alt=""></div>
+
+      <div class="score">
+        <span>퀴즈 정답 <span class="n" id="score"></span> / <span id="total"></span></span>
+        <span class="dots" id="dots" aria-hidden="true"></span>
+      </div>
+
+      <div class="date" id="date"></div>
+      <div class="issuer">
+        <span class="t"><span id="issuer"></span><span class="seal" id="seal" aria-hidden="true">철도<br>안전<br>인증</span></span>
+      </div>
+    </article>
+  </div>
+</main>
+
+<div class="actions">
+  <div class="inner" id="actInner">
+    <button class="btn primary" id="saveBtn" type="button">사진으로 저장하기</button>
+    <button class="btn ghost" id="shareBtn" type="button" hidden>가족에게 보내기</button>
+    <p class="help" id="help" aria-live="polite"><button type="button" id="viewBtn">저장이 안 되나요? 인증서 크게 보기</button></p>
+  </div>
+</div>
+</div>
+
+<div class="viewer" id="viewer" role="dialog" aria-modal="true" aria-labelledby="viewerMsg" hidden>
+  <p id="viewerMsg">인증서를 손가락으로 꾹 눌러<br>‘이미지 저장’을 고르세요<small>사진첩에 저장돼요</small></p>
+  <img id="viewerImg" alt="">
+  <button class="btn primary" id="viewerClose" type="button">닫기</button>
+</div>
+
+<script>
+'use strict';
+/* ================== 바꿔도 되는 곳 ================== */
+const SETTINGS = {
+  issuer: '칙칙폭폭땡땡 철도안전 여행',
+  // 엔딩 그림 경로. 그림을 바꾸려면 art/ 폴더의 같은 이름 파일만 교체 (svg·png·jpg 모두 됨: 확장자도 여기서 바꾸기)
+  art: (hero, tierId) => `art/${hero}_${tierId}.svg`,
+  fileName: name => `철도안전인증서_${name}.png`,
+};
+/* =================================================== */
+
+// 게임의 ENDINGS 와 같은 등급표 (문제 5개)
+const TOTAL = 5;
+const TIERS = [
+  { id: 'tier1', min: 0, max: 2, title: '철도안전 꿈나무', desc: '철도안전 규칙을 열심히 배웠어요. 다음엔 더 멋진 철도안전 친구가 될 거예요.' },
+  { id: 'tier2', min: 3, max: 4, title: '철도안전 돌봄이', desc: '안전 규칙을 잘 지켜서 뭉클 아저씨에게 칭찬을 받았어요.' },
+  { id: 'tier3', min: 5, max: 5, title: '철도안전 지킴이', desc: '모든 문제를 맞혔어요. 이제 뭉클 아저씨처럼 철도안전을 지킬 수 있어요.' },
+];
+const HEROES = { kiro: '키로', aro: '아로', chiyo: '치요' };
+
+const $ = id => document.getElementById(id);
+const josa = n => (n.charCodeAt(n.length - 1) - 0xac00) % 28 ? '과' : '와';
+
+/** QR 주소 읽기: ?h=chiyo&s=4&r=11011 → {hero, s, r} / 이상하면 null */
+function parseParams(search) {
+  const q = new URLSearchParams(search);
+  const hero = q.get('h'), sRaw = q.get('s'), rRaw = q.get('r');
+  if (!Object.prototype.hasOwnProperty.call(HEROES, hero)) return null;
+  if (!/^[0-5]$/.test(sRaw || '')) return null;
+  const s = +sRaw;
+  let r = null;
+  if (rRaw !== null) {
+    if (!new RegExp(`^[01]{${TOTAL}}$`).test(rRaw)) return null;
+    r = [...rRaw].map(c => c === '1');
+    if (r.filter(Boolean).length !== s) return null;
+  } else {
+    r = Array.from({ length: TOTAL }, (_, i) => i < s); // r 없으면 맞힌 개수만큼 앞에서부터
+  }
+  return { hero, s, r };
+}
+
+const data = parseParams(location.search);
+if (!data) {
+  $('bad').hidden = false;
+} else {
+  start(data);
+}
+
+function start({ hero, s, r }) {
+  $('app').hidden = false;
+  const tier = TIERS.find(t => s >= t.min && s <= t.max);
+  const hn = HEROES[hero];
+  const cert = $('cert'), wrap = $('wrap');
+  cert.dataset.hero = hero;
+  $('title').textContent = tier.title;
+  $('score').textContent = s;
+  $('total').textContent = TOTAL;
+  $('issuer').textContent = SETTINGS.issuer;
+  $('body').innerHTML =
+    `위 어린이는 <b>${hn}</b>${josa(hn)} 함께한 <b>칙칙폭폭땡땡 여행</b>에서 ${tier.desc} 이 마음을 칭찬하며 인증서를 드려요.`;
+  $('dots').innerHTML = r.map(ok => `<i class="${ok ? 'ok' : ''}"></i>`).join('');
+  const now = new Date();
+  $('date').textContent = `${now.getFullYear()}년 ${now.getMonth() + 1}월 ${now.getDate()}일`;
+  document.title = `${tier.title} 인증서 받기`;
+
+  // 3:4 인증서를 화면 폭에 맞춰 축소
+  new ResizeObserver(() => cert.style.setProperty('--s', wrap.clientWidth / 540)).observe(wrap);
+
+  // 그림: svg 는 크기 정보를 붙여 blob 으로 (canvas 에 선명하게 그리기 위해)
+  const artReady = loadArt(SETTINGS.art(hero, tier.id)).then(src => {
+    const img = $('art');
+    img.src = src;
+    return img.decode().then(() => img);
+  }).catch(() => null);
+
+  const fontsReady = Promise.all([
+    '300 17px Korail', '400 17px Korail', '700 17px Korail', '20px Jua',
+  ].map(f => document.fonts.load(f, '철도안전가'))).catch(() => {}).then(() => document.fonts.ready);
+
+  /* ---------- 이름 ---------- */
+  const input = $('name'), out = $('nameOut'), seal = $('seal');
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const getName = () => input.value.replace(/\s+/g, ' ').trim();
+  const stamp = () => { if (!seal.classList.contains('on')) seal.classList.add('on'); };
+  if (reduced) stamp();
+  input.addEventListener('input', () => {
+    const v = getName();
+    out.textContent = v || '홍길동';
+    out.classList.toggle('empty', !v);
+    if (v) { $('field').classList.remove('need'); $('needMsg').hidden = true; }
+    cache = null;
+  });
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') input.blur(); });
+  input.addEventListener('focus', () => document.body.classList.add('typing'));
+  input.addEventListener('blur', () => {
+    document.body.classList.remove('typing');
+    if (getName()) { stamp(); warm(); }
+  });
+
+  /* ---------- 저장 ---------- */
+  const ua = navigator.userAgent;
+  const inApp = /KAKAOTALK|NAVER\(|NAVER|Instagram|FBAN|FBAV|Line\/|DaumApps|everytimeApp|; wv\)/i.test(ua);
+  const iOS = /iP(hone|ad|od)/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const canShareFiles = (() => {
+    try { return !!navigator.canShare && navigator.canShare({ files: [new File([''], 'a.png', { type: 'image/png' })] }); }
+    catch { return false; }
+  })();
+  // 아이폰: 공유 창의 '이미지 저장'이 사진첩으로 가는 길. 안드로이드·PC: 파일 내려받기.
+  const shareToSave = iOS && canShareFiles && !inApp;
+  if (canShareFiles && !shareToSave && !inApp) { $('shareBtn').hidden = false; $('actInner').classList.add('two'); }
+
+  let cache = null; // { name, blob, url }
+  async function make() {
+    const name = getName();
+    if (cache && cache.name === name) return cache;
+    await fontsReady;
+    const img = await artReady;
+    const canvas = renderPng(cert, img);
+    const blob = await new Promise((res, rej) => canvas.toBlob(b => b ? res(b) : rej(new Error('toBlob')), 'image/png'));
+    cache = { name, blob, url: canvas.toDataURL('image/png') };
+    return cache;
+  }
+  let warmTimer;
+  function warm() { clearTimeout(warmTimer); warmTimer = setTimeout(() => make().catch(() => {}), 300); }
+
+  const saveBtn = $('saveBtn'), help = $('help');
+  const helpDefault = help.innerHTML;
+  let helpTimer;
+  function say(msg) {
+    clearTimeout(helpTimer);
+    help.textContent = msg;
+    helpTimer = setTimeout(() => { help.innerHTML = helpDefault; $('viewBtn').onclick = openViewer; }, 5000);
+  }
+  function needName() {
+    $('field').classList.remove('need'); void $('field').offsetWidth;
+    $('field').classList.add('need');
+    $('needMsg').hidden = false;
+    input.focus();
+  }
+  async function withBusy(fn) {
+    if (!getName()) return needName();
+    stamp();
+    saveBtn.disabled = true;
+    const label = saveBtn.textContent;
+    saveBtn.textContent = '인증서 만드는 중…';
+    try { await fn(await make()); }
+    catch (e) { console.error(e); say('저장이 안 됐어요. 인증서 화면을 캡처해 주세요.'); }
+    finally { saveBtn.disabled = false; saveBtn.textContent = label; }
+  }
+  function openViewer() {
+    withBusy(async c => {
+      $('viewerImg').src = c.url;
+      $('viewerImg').alt = `${c.name} 어린이의 철도안전 인증서`;
+      $('viewer').hidden = false;
+      $('viewerClose').focus();
+    });
+  }
+  async function shareFile(c) {
+    const file = new File([c.blob], SETTINGS.fileName(c.name), { type: 'image/png' });
+    await navigator.share({ files: [file], title: '철도안전 인증서' });
+  }
+
+  saveBtn.onclick = () => withBusy(async c => {
+    if (inApp) { $('viewerImg').src = c.url; $('viewerImg').alt = `${c.name} 어린이의 철도안전 인증서`; $('viewer').hidden = false; $('viewerClose').focus(); return; }
+    if (shareToSave) {
+      try { await shareFile(c); say('‘이미지 저장’을 누르면 사진첩에 들어가요.'); }
+      catch (e) {
+        if (e && e.name === 'AbortError') return;
+        $('viewerImg').src = c.url; $('viewer').hidden = false; // 공유 창이 막히면 꾹 눌러 저장
+      }
+      return;
+    }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(c.blob);
+    a.download = SETTINGS.fileName(c.name);
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+    say('저장했어요! 사진첩이나 ‘다운로드’에서 볼 수 있어요.');
+  });
+  $('shareBtn').onclick = () => withBusy(async c => {
+    try { await shareFile(c); } catch (e) { if (!e || e.name !== 'AbortError') say('보내기가 안 됐어요. 저장한 다음 보내 주세요.'); }
+  });
+  $('viewBtn').onclick = openViewer;
+  $('viewerClose').onclick = () => { $('viewer').hidden = true; saveBtn.focus(); };
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('viewer').hidden) $('viewerClose').click(); });
+}
+
+/** 그림 불러오기. svg 에 width/height 가 없으면 붙여서 canvas 에서도 선명하게 */
+async function loadArt(path) {
+  if (!/\.svg$/i.test(path)) return path;
+  const res = await fetch(path);
+  if (!res.ok) throw new Error('art ' + res.status);
+  let svg = await res.text();
+  svg = svg.replace(/<svg\b([^>]*)>/i, (m, attrs) => {
+    if (/\swidth=/.test(attrs)) return m;
+    const vb = /viewBox="\s*[\d.-]+[\s,]+[\d.-]+[\s,]+([\d.]+)[\s,]+([\d.]+)/.exec(attrs);
+    return vb ? `<svg${attrs} width="${vb[1]}" height="${vb[2]}">` : m;
+  });
+  return URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
+}
+
+/**
+ * 화면의 인증서를 1080×1440 PNG 로 다시 그림.
+ * 글자는 화면에 놓인 자리를 한 글자씩 재서 그대로 찍으므로 줄바꿈·자간이 화면과 똑같음.
+ */
+function renderPng(cert, artImg) {
+  const W = 540, H = 720, K = 2;
+  const canvas = document.createElement('canvas');
+  canvas.width = W * K; canvas.height = H * K;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(K, K);
+  const C = cert.getBoundingClientRect();
+  const sc = C.width / W;
+  const box = el => {
+    const r = el.getBoundingClientRect();
+    return { x: (r.left - C.left) / sc, y: (r.top - C.top) / sc, w: r.width / sc, h: r.height / sc };
+  };
+  const css = getComputedStyle(cert);
+  const hero = css.getPropertyValue('--hero').trim() || '#005BAC';
+
+  // 종이
+  ctx.fillStyle = '#fffefb'; ctx.fillRect(0, 0, W, H);
+  const g = ctx.createRadialGradient(270, 288, 0, 270, 288, 648);
+  g.addColorStop(0, '#fff'); g.addColorStop(.55, '#fff'); g.addColorStop(1, '#fbf7ee');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+
+  // 테두리 두 줄
+  const rrect = (x, y, w, h, r) => { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); };
+  ctx.strokeStyle = '#005BAC';
+  ctx.lineWidth = 2.5; rrect(14, 14, 512, 692, 6); ctx.stroke();
+  ctx.globalAlpha = .45; ctx.lineWidth = 1; rrect(21, 21, 498, 678, 3); ctx.stroke();
+  ctx.globalAlpha = 1;
+
+  // 그림
+  const art = cert.querySelector('.art');
+  const a = box(art);
+  ctx.save(); rrect(a.x, a.y, a.w, a.h, 16); ctx.clip();
+  ctx.fillStyle = '#eef3f8'; ctx.fillRect(a.x, a.y, a.w, a.h);
+  if (artImg) ctx.drawImage(artImg, a.x, a.y, a.w, a.h);
+  ctx.restore();
+
+  // 이름 밑줄
+  const v = box(cert.querySelector('.name .v'));
+  ctx.fillStyle = hero; ctx.fillRect(v.x, v.y + v.h - 1.5, v.w, 1.5);
+
+  // O/X 점
+  cert.querySelectorAll('.dots i').forEach(i => {
+    const d = box(i), cx = d.x + d.w / 2, cy = d.y + d.h / 2;
+    const ok = i.classList.contains('ok');
+    ctx.fillStyle = ok ? hero : '#cfd3d8';
+    ctx.beginPath(); ctx.arc(cx, cy, d.w / 2, 0, Math.PI * 2); ctx.fill();
+    if (ok) {
+      ctx.save(); ctx.translate(cx, cy - 1); ctx.rotate(-Math.PI / 4);
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.lineJoin = 'miter';
+      ctx.beginPath(); ctx.moveTo(-2, -1.5); ctx.lineTo(-2, .5); ctx.lineTo(3, .5); ctx.stroke();
+      ctx.restore();
+    }
+  });
+
+  // 글자 (도장 글자는 따로)
+  const seal = cert.querySelector('.seal');
+  const walker = document.createTreeWalker(cert, NodeFilter.SHOW_TEXT, {
+    acceptNode: n => seal.contains(n) || n.parentElement.closest('svg') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT,
+  });
+  const range = document.createRange();
+  for (let node; (node = walker.nextNode());) {
+    const st = getComputedStyle(node.parentElement);
+    ctx.font = `${st.fontStyle} ${st.fontWeight} ${st.fontSize} ${st.fontFamily}`;
+    ctx.fillStyle = st.color;
+    ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
+    const text = node.data;
+    for (let i = 0; i < text.length; i++) {
+      let ch = text[i];
+      const code = ch.charCodeAt(0);
+      if (code >= 0xd800 && code <= 0xdbff && i + 1 < text.length) ch += text[++i];
+      if (!ch.trim()) continue;
+      range.setStart(node, i + 1 - ch.length); range.setEnd(node, i + 1);
+      const r = range.getClientRects()[0];
+      if (!r || !r.width) continue;
+      const m = ctx.measureText(ch);
+      const top = (r.top - C.top) / sc;
+      const asc = m.fontBoundingBoxAscent;
+      const y = asc != null ? top + asc : top + parseFloat(st.fontSize) * .8;
+      ctx.fillText(ch, (r.left - C.left) / sc, y);
+    }
+  }
+
+  // 도장
+  const sb = box(seal), sx = sb.x + sb.w / 2, sy = sb.y + sb.h / 2;
+  ctx.save(); ctx.translate(sx, sy); ctx.rotate(-12 * Math.PI / 180);
+  ctx.strokeStyle = ctx.fillStyle = 'rgba(196, 36, 36, .85)';
+  ctx.lineWidth = 3.5; ctx.beginPath(); ctx.arc(0, 0, 30 - 1.75, 0, Math.PI * 2); ctx.stroke();
+  ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(0, 0, 23, 0, Math.PI * 2); ctx.stroke();
+  ctx.font = getComputedStyle(seal).fontSize + ' ' + getComputedStyle(seal).fontFamily;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ['철도', '안전', '인증'].forEach((t, i) => ctx.fillText(t, 0, (i - 1) * 13.5 * 1.05 + 1));
+  ctx.restore();
+
+  return canvas;
+}
+</script>
+</body>
+</html>
