@@ -181,7 +181,7 @@
 
       <div class="name">
         <span class="k">이름</span>
-        <span class="v empty" id="nameOut">홍길동</span>
+        <span class="v empty" id="nameOut">강아군</span>
       </div>
 
       <p class="body" id="body"></p>
@@ -313,7 +313,7 @@ function start({ hero, s, r, date }) {
   if (reduced) stamp();
   input.addEventListener('input', () => {
     const v = getName();
-    out.textContent = v || '홍길동';
+    out.textContent = v || '강아군';
     out.classList.toggle('empty', !v);
     if (v) { $('field').classList.remove('need'); $('needMsg').hidden = true; }
     cache = null;
