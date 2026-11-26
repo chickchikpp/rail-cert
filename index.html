@@ -66,6 +66,12 @@
     padding: 42px 48px 50px; text-align: center;
   }
   .frame { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  /* 코레일 로고: 위쪽 테두리 가운데에 박아 넣음 (흰 바탕이 테두리 두 줄을 끊어 줌) */
+  .brand {
+    position: absolute; left: 50%; top: 17.5px; transform: translate(-50%, -50%);
+    height: 26px; width: auto; padding: 0 12px; box-sizing: content-box;
+    background: #fff; display: block;
+  }
 
   .label { position: relative; font-size: 18px; color: var(--k-gold); letter-spacing: .4em; margin-right: -.4em; margin-bottom: 8px; }
   .title { margin: 0; font-weight: normal; color: var(--k-blue); font-size: 50px; line-height: 1.1; letter-spacing: .02em; }
@@ -175,6 +181,7 @@
         <rect x="14" y="14" width="512" height="692" rx="6" fill="none" stroke="#005BAC" stroke-width="2.5"/>
         <rect x="21" y="21" width="498" height="678" rx="3" fill="none" stroke="#005BAC" stroke-opacity=".45" stroke-width="1"/>
       </svg>
+      <img class="brand" id="brand" src="img/korail_logo.png" alt="코레일">
 
       <div class="label">철도안전 인증서</div>
       <h2 class="title" id="title"></h2>
@@ -343,6 +350,8 @@ function start({ hero, s, r, date }) {
     if (cache && cache.name === name) return cache;
     await fontsReady;
     const img = await artReady;
+    const brand = $('brand');
+    await (brand.decode ? brand.decode().catch(() => {}) : null);
     const canvas = renderPng(cert, img);
     const blob = await new Promise((res, rej) => canvas.toBlob(b => b ? res(b) : rej(new Error('toBlob')), 'image/png'));
     cache = { name, blob, url: canvas.toDataURL('image/png') };
@@ -458,6 +467,14 @@ function renderPng(cert, artImg) {
   ctx.lineWidth = 2.5; rrect(14, 14, 512, 692, 6); ctx.stroke();
   ctx.globalAlpha = .45; ctx.lineWidth = 1; rrect(21, 21, 498, 678, 3); ctx.stroke();
   ctx.globalAlpha = 1;
+
+  // 코레일 로고 (테두리를 흰 바탕으로 끊고 그 위에)
+  const brandEl = cert.querySelector('.brand');
+  if (brandEl && brandEl.complete && brandEl.naturalWidth) {
+    const bb = box(brandEl), pad = 12;
+    ctx.fillStyle = '#fff'; ctx.fillRect(bb.x, bb.y, bb.w, bb.h);
+    ctx.drawImage(brandEl, bb.x + pad, bb.y, bb.w - pad * 2, bb.h);
+  }
 
   // 그림
   const art = cert.querySelector('.art');
