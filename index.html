@@ -286,7 +286,7 @@ function start({ hero, s, r, date }) {
   $('total').textContent = TOTAL;
   $('issuer').textContent = SETTINGS.issuer;
   $('body').innerHTML =
-    `위 어린이는 <b>${hn}</b>${josa(hn)} 함께한 <b>칙칙폭폭땡땡 여행</b>에서 ${tier.desc} 이 마음을 칭찬하며 인증서를 드려요.`;
+    `위 어린이는 <b>${hn}</b>${josa(hn)} 함께한 <b>칙칙폭폭땡땡 여행</b>에서 ${tier.desc}<br>이 마음을 칭찬하며 인증서를 드려요.`;
   $('dots').innerHTML = r.map(ok => `<i class="${ok ? 'ok' : ''}"></i>`).join('');
   $('date').textContent = `${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일`;
   document.title = `${tier.title} 인증서 받기`;
