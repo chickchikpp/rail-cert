@@ -154,6 +154,33 @@
   .bad p { margin: 0; font-family: var(--text); font-size: 17px; line-height: 1.6; word-break: keep-all; }
 
   @media (prefers-reduced-motion: reduce) { .seal.on { animation: none; } .field.need input { animation: none; } }
+
+  /* ---------- 다른 언어 (?l=en · ja · zh) — 한국어(lang="ko")일 때는 아래 규칙이 하나도 안 걸림 ----------
+     일본어·중국어 글꼴은 이 페이지 글자만 담은 작은 파일 (fonts/ 의 woff2, 다시 만들기: railcert_tools/subset_cert.py)
+     목록에 없는 글자(아이가 적은 이름 등)는 기기 글꼴 → 코레일체 순서로 찾아 그림 */
+  @font-face { font-family: 'RailJa'; src: url('fonts/ja-mplusrounded1c-700.woff2') format('woff2'); font-weight: 300 800; font-display: swap; }
+  @font-face { font-family: 'RailZh'; src: url('fonts/zh-notosanssc-500.woff2') format('woff2'); font-weight: 300 500; font-display: swap; }
+  @font-face { font-family: 'RailZh'; src: url('fonts/zh-notosanssc-700.woff2') format('woff2'); font-weight: 600 800; font-display: swap; }
+  html:lang(ja) {
+    --round: 'RailJa', 'Hiragino Maru Gothic ProN', 'Hiragino Sans', 'Yu Gothic', 'Meiryo', 'Noto Sans JP', 'Korail', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+    --text: var(--round);
+  }
+  html:lang(zh) {
+    --round: 'RailZh', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans SC', 'Korail', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+    --text: var(--round);
+  }
+  /* 한국어처럼 띄어쓰기 단위로만 끊으면 중국어(띄어쓰기 없음)는 한 줄로 넘쳐 버림 */
+  html:lang(zh) .body, html:lang(zh) .bad p { word-break: normal; line-break: strict; }
+  /* 일본어는 게임처럼 띄어 쓴 마디에서만 끊음 (낱말 가운데서 안 끊기게) */
+  html:lang(ja) .body { font-size: 16.5px; line-height: 1.7; }
+  html:lang(ja) .top h1, html:lang(ja) .bad h1, html:lang(ja) .bad p, html:lang(ja) .top p { word-break: keep-all; overflow-wrap: anywhere; }
+  /* 영어는 글자 수가 많아서 조금 작게 */
+  html:lang(en) .label { letter-spacing: .14em; margin-right: -.14em; font-size: 17px; }
+  html:lang(en) .title { font-size: 40px; letter-spacing: 0; }
+  html:lang(en) .body { font-size: 16px; line-height: 1.6; }
+  html:lang(en) .name .v { letter-spacing: .02em; margin-right: -.02em; }
+  html:lang(en) .issuer { font-size: 18px; }
+  html:lang(en) .seal { font-size: 12.5px; }
 </style>
 </head>
 <body>
@@ -225,28 +252,201 @@
 
 <script>
 'use strict';
+/* ================== 언어 ==================
+ * QR 주소의 l= 로 언어를 고름: 없으면 한국어 (예전 QR 그대로)
+ *   l=en · en-US → 영어 / l=ja → 일본어 / l=zh · zh-CN → 중국어(간체) / 그 밖의 값 → 한국어
+ * 글은 모두 아래 LANGS 한 곳에. 게임(js/i18n/*.js)의 등급 이름·캐릭터 이름과 똑같이 맞춤 */
+const LANG = (() => {
+  let v = '';
+  try { v = (new URLSearchParams(location.search).get('l') || '').trim().toLowerCase().replace(/_/g, '-'); } catch (e) {}
+  if (v === 'en' || v.startsWith('en-')) return 'en-US';
+  if (v === 'ja' || v.startsWith('ja-')) return 'ja';
+  if (v === 'zh' || v === 'zh-cn' || v === 'zh-sg' || v === 'zh-hans' || v.startsWith('zh-hans-')) return 'zh-CN';
+  return 'ko';
+})();
+
+const LANGS = {
+  ko: {
+    heroes: { kiro: '키로', aro: '아로', chiyo: '치요' },
+    tiers: {
+      tier1: { title: '철도안전 꿈나무', desc: '철도안전 규칙을 열심히 배웠어요. 다음엔 더 멋진 철도안전 친구가 될 거예요.' },
+      tier2: { title: '철도안전 돌봄이', desc: '안전 규칙을 잘 지켜서 뭉클 아저씨에게 칭찬을 받았어요.' },
+      tier3: { title: '철도안전 지킴이', desc: '모든 문제를 맞혔어요. 이제 뭉클 아저씨처럼 철도안전을 지킬 수 있어요.' },
+    },
+    body: (hn, tier) => `위 어린이는 <b>${hn}</b>${josa(hn)} 함께한 <b>칙칙폭폭땡땡 철도안전 여행</b>에서 ${tier.desc}${tier.id === 'tier2' ? '<br>' : ' '}이 마음을 칭찬하며 인증서를 드려요.`,
+    issuer: '칙칙폭폭땡땡 철도안전 여행',
+    date: d => `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일`,
+    docTitle: t => `${t} 인증서 받기`,
+    seal: ['철도', '안전', '인증'],
+    sampleName: '강아군',
+    busy: '인증서 만드는 중…',
+    errSave: '저장이 안 됐어요. 인증서 화면을 캡처해 주세요.',
+    hintShare: '‘이미지 저장’을 누르면 사진첩에 들어가요.',
+    saved: '저장했어요! 사진첩이나 ‘다운로드’에서 볼 수 있어요.',
+    errShare: '보내기가 안 됐어요. 저장한 다음 보내 주세요.',
+    viewerAlt: n => `${n} 어린이의 철도안전 인증서`,
+    shareTitle: '철도안전 인증서',
+    fileName: n => `철도안전인증서_${n}.png`,
+    fontProbe: '철도안전가',
+    // 아래는 화면(HTML)에 이미 한국어로 적혀 있어서 한국어일 때는 쓰지 않음
+  },
+  'en-US': {
+    heroes: { kiro: 'Kiro', aro: 'Aro', chiyo: 'Chiyo' },
+    tiers: { tier1: { title: 'Railway Safety Sprout' }, tier2: { title: 'Railway Safety Helper' }, tier3: { title: 'Railway Safety Guardian' } },
+    body: (hn, tier) => ({
+      tier1: `You went on the <b>Choo-Choo Ding-Ding Railway Safety Trip</b> with <b>${hn}</b> and worked hard to learn the railway safety rules. Next time, you can be an even better safety friend! We are so proud of you, so this certificate is just for you.`,
+      tier2: `You went on the <b>Choo-Choo Ding-Ding Railway Safety Trip</b> with <b>${hn}</b> and followed the safety rules so well that Uncle Munkle was proud of you! We are so proud of you too, so this certificate is just for you.`,
+      tier3: `You went on the <b>Choo-Choo Ding-Ding Railway Safety Trip</b> with <b>${hn}</b> and got every question right! Now you can keep trains safe, just like Uncle Munkle. We are so proud of you, so this certificate is just for you.`,
+    })[tier.id],
+    issuer: 'Choo-Choo Ding-Ding Safety Trip',
+    date: d => new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'long', day: 'numeric' }).format(d),
+    docTitle: t => `Get Your ${t} Certificate`,
+    seal: ['RAIL', 'SAFE', 'KID'],
+    sampleName: 'Your Name',
+    busy: 'Making your certificate…',
+    errSave: 'Oops, it didn’t save. Please take a screenshot of your certificate.',
+    hintShare: 'Tap “Save Image” to put it in your photos.',
+    saved: 'Saved! You can find it in your photos or “Downloads”.',
+    errShare: 'Oops, it didn’t send. Please save it first, then send it.',
+    viewerAlt: n => `${n}’s Railway Safety Certificate`,
+    shareTitle: 'Railway Safety Certificate',
+    fileName: n => `Railway-Safety-Certificate_${n}.png`,
+    fontProbe: 'Railway',
+    maxName: 12,
+    page: {
+      title: 'Get Your Railway Safety Certificate',
+      lead: 'Type your name, and it goes right onto your certificate.',
+      nameLabel: 'Name', placeholder: 'Type your name', needName: 'Please type your name first.',
+      certAria: 'Railway Safety Certificate', brandAlt: 'KORAIL', label: 'Railway Safety Certificate', nameKey: 'Name', score: 'Right answers',
+      save: 'Save as a Photo', share: 'Send to Family', viewHelp: 'Can’t save it? See your certificate bigger',
+      viewerMsg: 'Press and hold the certificate,<br>then choose “Save Image”<small>It will go into your photos</small>', close: 'Close',
+      badTitle: 'Oops! We couldn’t read the QR code', badText: 'Please scan the QR code on the game screen again.',
+    },
+  },
+  ja: {
+    heroes: { kiro: 'キロ', aro: 'アロ', chiyo: 'チヨ' },
+    tiers: { tier1: { title: '安全みならい' }, tier2: { title: '安全サポーター' }, tier3: { title: '安全まもりびと' } },
+    body: (hn, tier) => ({
+      tier1: `<b>${hn}</b>と いっしょの <b>シュッシュポッポ カンカン てつどう安全たび</b>で、安全の ルールを いっしょうけんめい 学んだね。つぎは もっと すてきな 安全の なかまに なれるよ。がんばった あなたに この にんていしょうを おくります。`,
+      tier2: `<b>${hn}</b>と いっしょの <b>シュッシュポッポ カンカン てつどう安全たび</b>で、安全の ルールを よく まもって、ムンクルおじさんに ほめてもらったね。がんばった あなたに この にんていしょうを おくります。`,
+      tier3: `<b>${hn}</b>と いっしょの <b>シュッシュポッポ カンカン てつどう安全たび</b>で、ぜんぶ せいかい！ これからは ムンクルおじさんのように 安全を まもれるね。がんばった あなたに この にんていしょうを おくります。`,
+    })[tier.id],
+    issuer: 'シュッシュポッポ カンカン',
+    date: d => new Intl.DateTimeFormat('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' }).format(d),
+    docTitle: t => `「${t}」の にんていしょうを もらおう`,
+    seal: ['鉄道', '安全', '認定'],
+    sampleName: 'なまえ',
+    busy: 'にんていしょうを つくっているよ…',
+    errSave: 'ほぞんできなかったよ。にんていしょうの 画面を スクリーンショットしてね。',
+    hintShare: '「画像を保存」を おすと、しゃしんに 入るよ。',
+    saved: 'ほぞんしたよ！しゃしんや「ダウンロード」で 見られるよ。',
+    errShare: 'おくれなかったよ。ほぞんしてから おくってね。',
+    viewerAlt: n => `${n}さんの 安全にんていしょう`,
+    shareTitle: '安全にんていしょう',
+    fileName: n => `安全にんていしょう_${n}.png`,
+    fontProbe: '安全にんていしょう',
+    maxName: 8,
+    page: {
+      title: '安全にんていしょうを もらおう',
+      lead: 'なまえを 書くと、にんていしょうに すぐ 入るよ。',
+      nameLabel: 'なまえ', placeholder: 'なまえを 書いてね', needName: 'さきに なまえを 書いてね。',
+      certAria: '安全にんていしょう', brandAlt: 'KORAIL', label: '安全にんていしょう', nameKey: 'なまえ', score: 'クイズのせいかい',
+      save: 'しゃしんで ほぞんする', share: 'かぞくに おくる', viewHelp: 'ほぞんできない？ にんていしょうを 大きく 見る',
+      viewerMsg: 'にんていしょうを ゆびで ながおしして<br>「画像を保存」を えらんでね<small>しゃしんに ほぞんされるよ</small>', close: 'とじる',
+      badTitle: 'QRコードが よみとれなかったよ', badText: 'ゲームの 画面の QRコードを もういちど よみとってね。',
+    },
+  },
+  'zh-CN': {
+    heroes: { kiro: '基洛', aro: '阿洛', chiyo: '千代' },
+    tiers: { tier1: { title: '铁路安全小苗苗' }, tier2: { title: '铁路安全小帮手' }, tier3: { title: '铁路安全小卫士' } },
+    body: (hn, tier) => ({
+      tier1: `你和<b>${hn}</b>一起参加了<b>小朋友铁路安全之旅</b>，认真地学习了铁路安全规则。下次一定能成为更棒的铁路安全小伙伴！为了夸夸你的用心，送你这张证书哦。`,
+      tier2: `你和<b>${hn}</b>一起参加了<b>小朋友铁路安全之旅</b>，安全规则你都遵守得很好，蒙克叔叔夸你啦！为了夸夸你的用心，送你这张证书哦。`,
+      tier3: `你和<b>${hn}</b>一起参加了<b>小朋友铁路安全之旅</b>，每道题都答对啦！现在你可以像蒙克叔叔一样守护铁路安全啦。为了夸夸你的用心，送你这张证书哦。`,
+    })[tier.id],
+    issuer: '小朋友铁路安全之旅',
+    date: d => new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' }).format(d),
+    docTitle: t => `领取${t}证书`,
+    seal: ['铁路', '安全', '认证'],
+    sampleName: '你的名字',
+    busy: '正在做证书…',
+    errSave: '没能保存哦。请截个图，把证书存下来吧。',
+    hintShare: '点“存储图像”，就会存进相册哦。',
+    saved: '保存好啦！可以在相册或“下载”里找到哦。',
+    errShare: '没能发送哦。请先保存，再发送吧。',
+    viewerAlt: n => `${n}小朋友的铁路安全证书`,
+    shareTitle: '铁路安全证书',
+    fileName: n => `铁路安全证书_${n}.png`,
+    fontProbe: '铁路安全证书',
+    maxName: 6,
+    page: {
+      title: '领取铁路安全证书',
+      lead: '写上名字，就会马上出现在证书上哦。',
+      nameLabel: '名字', placeholder: '请写上你的名字', needName: '请先写上你的名字哦。',
+      certAria: '铁路安全证书', brandAlt: 'KORAIL', label: '铁路安全证书', nameKey: '名字', score: '答对的题',
+      save: '存成照片', share: '发给家人', viewHelp: '存不了吗？把证书放大看看',
+      viewerMsg: '用手指长按证书<br>选择“存储图像”<small>会存到相册里哦</small>', close: '关闭',
+      badTitle: '没能识别二维码哦', badText: '请再扫一次游戏画面上的二维码吧。',
+    },
+  },
+};
+const T = LANGS[LANG];
+
+/* 한국어가 아니면 화면에 적혀 있는 한국어 글을 바꿔 끼움 (한국어면 아무것도 안 건드림) */
+function applyPageText() {
+  const p = T.page;
+  if (!p) return;
+  const set = (sel, v) => { const el = document.querySelector(sel); if (el) el.textContent = v; };
+  document.documentElement.lang = LANG;
+  document.title = p.title;
+  set('#bad h1', p.badTitle);
+  set('#bad p', p.badText);
+  const h1 = document.querySelector('.top h1');
+  if (h1 && h1.lastChild) h1.lastChild.textContent = p.title;
+  set('.top > p', p.lead);
+  set('label[for="name"]', p.nameLabel);
+  const input = document.getElementById('name');
+  input.placeholder = p.placeholder;
+  if (T.maxName) input.maxLength = T.maxName;
+  set('#needMsg', p.needName);
+  document.getElementById('cert').setAttribute('aria-label', p.certAria);
+  document.getElementById('brand').alt = p.brandAlt;
+  set('.cert .label', p.label);
+  set('.name .k', p.nameKey);
+  set('#nameOut', T.sampleName);
+  const sc = document.querySelector('.score > span');
+  if (sc && sc.firstChild && sc.firstChild.nodeType === 3) sc.firstChild.data = p.score + ' ';
+  document.getElementById('seal').innerHTML = T.seal.join('<br>');
+  set('#saveBtn', p.save);
+  set('#shareBtn', p.share);
+  set('#viewBtn', p.viewHelp);
+  document.getElementById('viewerMsg').innerHTML = p.viewerMsg; // 고정 글만 (사용자 입력 없음)
+  set('#viewerClose', p.close);
+}
+applyPageText();
+
 /* ================== 바꿔도 되는 곳 ================== */
 const SETTINGS = {
-  issuer: '칙칙폭폭땡땡 철도안전 여행',
+  issuer: T.issuer,
   // 엔딩 그림. art/ 폴더의 '주인공_등급.확장자' 파일 (예: chiyo_tier3.png)
   // 등급마다 그림 형식(svg·png·jpg)을 여기서 정함 — 그림을 바꾸면 확장자만 맞춰 주기
   artExt: { tier1: 'svg', tier2: 'svg', tier3: 'png' },
   art: (hero, tierId) => `art/${hero}_${tierId}.${SETTINGS.artExt[tierId]}`,
-  fileName: name => `철도안전인증서_${name}.png`,
+  fileName: name => T.fileName(name),
 };
 /* =================================================== */
 
 // 게임의 ENDINGS 와 같은 등급표 (문제 5개)
 const TOTAL = 5;
 const TIERS = [
-  { id: 'tier1', min: 0, max: 2, title: '철도안전 꿈나무', desc: '철도안전 규칙을 열심히 배웠어요. 다음엔 더 멋진 철도안전 친구가 될 거예요.' },
-  { id: 'tier2', min: 3, max: 4, title: '철도안전 돌봄이', desc: '안전 규칙을 잘 지켜서 뭉클 아저씨에게 칭찬을 받았어요.' },
-  { id: 'tier3', min: 5, max: 5, title: '철도안전 지킴이', desc: '모든 문제를 맞혔어요. 이제 뭉클 아저씨처럼 철도안전을 지킬 수 있어요.' },
-];
-const HEROES = { kiro: '키로', aro: '아로', chiyo: '치요' };
+  { id: 'tier1', min: 0, max: 2 },
+  { id: 'tier2', min: 3, max: 4 },
+  { id: 'tier3', min: 5, max: 5 },
+].map(t => Object.assign(t, LANGS.ko.tiers[t.id], T.tiers[t.id]));
+const HEROES = LANGS.ko.heroes; // 주소의 h= 검사용 (kiro·aro·chiyo)
 
 const $ = id => document.getElementById(id);
-const josa = n => (n.charCodeAt(n.length - 1) - 0xac00) % 28 ? '과' : '와';
+function josa(n) { return (n.charCodeAt(n.length - 1) - 0xac00) % 28 ? '과' : '와'; }
 
 /** 'YYYYMMDD' → Date (실제로 있는 날짜만) / 아니면 null */
 function parseDay(v) {
@@ -285,18 +485,17 @@ if (!data) {
 function start({ hero, s, r, date }) {
   $('app').hidden = false;
   const tier = TIERS.find(t => s >= t.min && s <= t.max);
-  const hn = HEROES[hero];
+  const hn = T.heroes[hero];
   const cert = $('cert'), wrap = $('wrap');
   cert.dataset.hero = hero;
   $('title').textContent = tier.title;
   $('score').textContent = s;
   $('total').textContent = TOTAL;
   $('issuer').textContent = SETTINGS.issuer;
-  $('body').innerHTML =
-    `위 어린이는 <b>${hn}</b>${josa(hn)} 함께한 <b>칙칙폭폭땡땡 철도안전 여행</b>에서 ${tier.desc}${tier.id === 'tier2' ? '<br>' : ' '}이 마음을 칭찬하며 인증서를 드려요.`;
+  $('body').innerHTML = T.body(hn, tier); // 고정 글 + 캐릭터 이름만 (사용자 입력 없음)
   $('dots').innerHTML = r.map(ok => `<i class="${ok ? 'ok' : ''}"></i>`).join('');
-  $('date').textContent = `${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일`;
-  document.title = `${tier.title} 인증서 받기`;
+  $('date').textContent = T.date(date);
+  document.title = T.docTitle(tier.title);
 
   // 3:4 인증서를 화면 폭에 맞춰 축소
   new ResizeObserver(() => cert.style.setProperty('--s', wrap.clientWidth / 540)).observe(wrap);
@@ -308,9 +507,12 @@ function start({ hero, s, r, date }) {
     return img.decode().then(() => img);
   }).catch(() => null);
 
-  const fontsReady = Promise.all([
+  const fontsReady = Promise.all(({
+    ja: ['400 17px RailJa', '700 17px RailJa'],
+    'zh-CN': ['400 17px RailZh', '700 17px RailZh'],
+  }[LANG] || [
     '300 17px Korail', '400 17px Korail', '700 17px Korail', '20px Jua',
-  ].map(f => document.fonts.load(f, '철도안전가'))).catch(() => {}).then(() => document.fonts.ready);
+  ]).map(f => document.fonts.load(f, T.fontProbe))).catch(() => {}).then(() => document.fonts.ready);
 
   /* ---------- 이름 ---------- */
   const input = $('name'), out = $('nameOut'), seal = $('seal');
@@ -320,7 +522,7 @@ function start({ hero, s, r, date }) {
   if (reduced) stamp();
   input.addEventListener('input', () => {
     const v = getName();
-    out.textContent = v || '강아군';
+    out.textContent = v || T.sampleName;
     out.classList.toggle('empty', !v);
     if (v) { $('field').classList.remove('need'); $('needMsg').hidden = true; }
     cache = null;
@@ -379,28 +581,28 @@ function start({ hero, s, r, date }) {
     stamp();
     saveBtn.disabled = true;
     const label = saveBtn.textContent;
-    saveBtn.textContent = '인증서 만드는 중…';
+    saveBtn.textContent = T.busy;
     try { await fn(await make()); }
-    catch (e) { console.error(e); say('저장이 안 됐어요. 인증서 화면을 캡처해 주세요.'); }
+    catch (e) { console.error(e); say(T.errSave); }
     finally { saveBtn.disabled = false; saveBtn.textContent = label; }
   }
   function openViewer() {
     withBusy(async c => {
       $('viewerImg').src = c.url;
-      $('viewerImg').alt = `${c.name} 어린이의 철도안전 인증서`;
+      $('viewerImg').alt = T.viewerAlt(c.name);
       $('viewer').hidden = false;
       $('viewerClose').focus();
     });
   }
   async function shareFile(c) {
     const file = new File([c.blob], SETTINGS.fileName(c.name), { type: 'image/png' });
-    await navigator.share({ files: [file], title: '철도안전 인증서' });
+    await navigator.share({ files: [file], title: T.shareTitle });
   }
 
   saveBtn.onclick = () => withBusy(async c => {
-    if (inApp) { $('viewerImg').src = c.url; $('viewerImg').alt = `${c.name} 어린이의 철도안전 인증서`; $('viewer').hidden = false; $('viewerClose').focus(); return; }
+    if (inApp) { $('viewerImg').src = c.url; $('viewerImg').alt = T.viewerAlt(c.name); $('viewer').hidden = false; $('viewerClose').focus(); return; }
     if (shareToSave) {
-      try { await shareFile(c); say('‘이미지 저장’을 누르면 사진첩에 들어가요.'); }
+      try { await shareFile(c); say(T.hintShare); }
       catch (e) {
         if (e && e.name === 'AbortError') return;
         $('viewerImg').src = c.url; $('viewer').hidden = false; // 공유 창이 막히면 꾹 눌러 저장
@@ -412,10 +614,10 @@ function start({ hero, s, r, date }) {
     a.download = SETTINGS.fileName(c.name);
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 10000);
-    say('저장했어요! 사진첩이나 ‘다운로드’에서 볼 수 있어요.');
+    say(T.saved);
   });
   $('shareBtn').onclick = () => withBusy(async c => {
-    try { await shareFile(c); } catch (e) { if (!e || e.name !== 'AbortError') say('보내기가 안 됐어요. 저장한 다음 보내 주세요.'); }
+    try { await shareFile(c); } catch (e) { if (!e || e.name !== 'AbortError') say(T.errShare); }
   });
   $('viewBtn').onclick = openViewer;
   $('viewerClose').onclick = () => { $('viewer').hidden = true; saveBtn.focus(); };
@@ -538,7 +740,7 @@ function renderPng(cert, artImg) {
   ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(0, 0, 23, 0, Math.PI * 2); ctx.stroke();
   ctx.font = getComputedStyle(seal).fontSize + ' ' + getComputedStyle(seal).fontFamily;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ['철도', '안전', '인증'].forEach((t, i) => ctx.fillText(t, 0, (i - 1) * 13.5 * 1.05 + 1));
+  T.seal.forEach((t, i) => ctx.fillText(t, 0, (i - 1) * 13.5 * 1.05 + 1));
   ctx.restore();
 
   return canvas;
